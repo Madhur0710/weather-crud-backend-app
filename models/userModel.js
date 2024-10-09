@@ -6,10 +6,10 @@ const userSchema = new mongoose.Schema({
   gender: { type: String, required: true },
   phone: { type: String, required: true },
   email: { type: String, required: true },
-  city: String,
-  region: String,
-  country: String,
-  weather: String
+  city: { type: String, default: 'Unknown city' }, 
+  region: { type: String, default: '' },
+  country: { type: String, default: 'Unknown country' }, 
+  weather: { type: String, default: 'Weather not available' } 
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,24 +1,25 @@
 const axios = require('axios');
 const User = require('../models/userModel');
 
+// Fetching location from IP
 const fetchLocationFromIP = async () => {
   try {
     const response = await axios.get(`${process.env.IP_LOOKUP_API_BASE_URL}`);
-
-    const locationString = response.data.location; 
+    const locationString = response.data.location;
     const [city, country] = locationString.split(",").map(item => item.trim());
 
-    return { city, region: "", country };  
+    return { city, region: "", country };
   } catch (error) {
     console.error('Error fetching location:', error);
-    return null;
+    return 'Location not available';
   }
 };
 
+// Fetching weather for a given city
 const fetchWeather = async (city) => {
   try {
     const response = await axios.get(`${process.env.WEATHER_API_BASE_URL}/weather`, {
-      params: { city, units: 'metric' }, 
+      params: { city, units: 'metric' },
       headers: {
         'X-RapidAPI-Key': process.env.WEATHER_API_KEY,
         'X-RapidAPI-Host': 'weather-api99.p.rapidapi.com'
@@ -29,7 +30,7 @@ const fetchWeather = async (city) => {
     return `Temperature: ${main.temp}°C, Condition: ${weather[0].description}`;
   } catch (error) {
     console.error('Unable to fetch weather:', error.response?.data || error.message);
-    return 'Unable to fetch weather';
+    return 'Weather not available';
   }
 };
 
@@ -39,22 +40,28 @@ exports.createUser = async (req, res) => {
     const { name, age, gender, phone, email } = req.body;
 
     const location = await fetchLocationFromIP();
-    if (!location) {
-      return res.status(500).json({ message: 'Error fetching location' });
-    }
-
     const { city, country } = location;
 
     const weather = await fetchWeather(city);
 
-    const newUser = new User({ name, age, gender, phone, email, city, country, weather });
-    await newUser.save();
+    const newUser = new User({
+      name,
+      age,
+      gender,
+      phone,
+      email,
+      city, 
+      country, 
+      weather 
+    });
 
+    await newUser.save();
     res.status(201).json(newUser);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 exports.getUsers = async (req, res) => {
   try {
@@ -83,6 +90,7 @@ exports.updateUser = async (req, res) => {
   try {
     const { name, age, gender, phone, email } = req.body;
     const user = await User.findById(req.params.id);
+
     if (user) {
       user.name = name || user.name;
       user.age = age || user.age;
@@ -91,12 +99,10 @@ exports.updateUser = async (req, res) => {
       user.email = email || user.email;
 
       const location = await fetchLocationFromIP();
-      if (!location) {
-        return res.status(500).json({ message: 'Error fetching location' });
-      }
-      user.city = location.city;
-      user.country = location.country;
-      user.weather = await fetchWeather(location.city);
+      user.city = location.city || user.city;
+      user.country = location.country || user.country;
+
+      user.weather = await fetchWeather(user.city) || user.weather;
 
       await user.save();
       res.json(user);
@@ -107,3 +113,4 @@ exports.updateUser = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
